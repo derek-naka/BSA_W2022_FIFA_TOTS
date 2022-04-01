@@ -1,0 +1,119 @@
+
+
+
+```{r setup, include=FALSE, echo=FALSE}
+library(stringr)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+
+# read in the 2017-18 season
+season4 <- read.csv(file = "2017-2018.csv")
+season4 <- season4 %>%
+  select(player_name, teams_played_for, league, games, goals, assists, position, shots) %>%
+  filter(grepl("F", position))
+season4
+season4$year <- "2018"
+season4$TOTS <- "no"
+season4$ind_trophies <- 0
+season4$team_trophies <- 0
+
+# these are the players and teams that won trophies during this season
+TOTS_4 <- c("Harry Kane", "Edinson Cavani", "Ciro Immobile", "Luis SuÃ¡rez", "Robert Lewandowski", "Sergio AgÃ¼ero", "Lionel Messi", "Cristiano Ronaldo", "Neymar", "Mohamed Salah", "Paulo Dybala", "Nabil Fekir", "James RodrÃ­guez")
+trophies_4 <- c("Chelsea", "Manchester City", "Juventus", "Juventus", "Eintracht Frankfurt", "Bayern Munich", "Real Madrid", "Barcelona", "Paris Saint Germain", "Paris Saint Germain", "Real Madrid", "Real Madrid", "Athletico Madrid")
+individual_trophies_4 <- c("Mohamed Salah", "Robert Lewandowski", "Edison Cavani", "Lionel Messi", "Ciro Immobile", "Luka Modric", "Luke Modric", "Cristiano Ronaldo", "Lionel Messi", "Neymar", "Mauro Icardi", "Harry Kane", "Toni Kroos", "", "")
+  
+
+# read in the 2018-19 season
+season5 <- read.csv(file = "2018-2019.csv")
+season5 <- season5 %>%
+  select(player_name, teams_played_for, league, games, goals, assists, position, shots) %>%
+  filter(grepl("F", position))
+season5$year <- "2019"
+season5$TOTS <- "no"
+season5$ind_trophies <- 0
+season5$team_trophies <- 0
+# these are the players and teams that won trophies during this season
+TOTS_5 <- c("Kylian Mbappe-Lottin", "Fabio Quagliarella", "Karim Benzema", "Luis SuÃ¡rez", "Cristiano Ronaldo", "Raheem Sterling", "Lionel Messi", "Nicolas Pepe", "Kai Havertz", "Marco Reus", "Bernardo Silva", "Pablo Sarabia", "Mohamed Salah")
+trophies_5 <- c("Manchester City ", "Manchester City", "Juventus", "Lazio", "Bayern Munich", "Bayern Munich", "Barcelona", "Valencia", "Rennes", "Paris Saint Germain", "Liverpool", "Liverpool", "Liverpool")
+individual_trophies_5 <- c("Mohamed Salah", "Sadio ManÃ©", "Pierre-Emerick Aubameyang", "Robert Lewandowski", "Kylian Mbappe-Lottin", "Lionel Messi", "Fabio Quagliarella", "Lionel Messi", "Lionel Messi", "Lionel Messi", "Lionel Messi", "Kylian Mbappe-Lottin", "Cristiano Ronaldo", "Harry Kane", "Marco Reus")
+
+# Individual Awards include top goal scorer (1 per league), best player (1 per league), Ballon D'or, FIFA Player of the Year, and Champions League Player of the Tournament
+# Team Awards include Champions League, Domestic Cups (one per league), Super Cup, Club World Cup, and League Cup (one per league)
+
+
+#populating the data frame for if the player was in the team of the season
+for (i in 1:nrow(season5)){
+  for (j in 1:length(TOTS_4)){
+    if (season4$player_name[i] == TOTS_4[j]){
+      season4$TOTS[i] = "yes" }
+    if (season5$player_name[i] == TOTS_5[j]){
+      season5$TOTS[i] = "yes" }
+  }
+}
+# populates the data for if the player has won an individual trophy
+for (i in 1:nrow(season5)){
+  for (j in 1:length(individual_trophies_4)){
+    if (season4$player_name[i] == individual_trophies_4[j]){
+      season4$ind_trophies[i] = season4$ind_trophies[i] + 1 }
+    if (season5$player_name[i] == individual_trophies_5[j]){
+      season5$ind_trophies[i] = season5$ind_trophies[i] + 1 }
+  }
+}
+# populates the data for if the player has won an individual trophy
+for (i in 1:nrow(season5)){
+  for (j in 1:length(trophies_4)){
+    if (season4$teams_played_for[i] == trophies_4[j]){
+      season4$team_trophies[i] = season4$team_trophies[i] + 1 }
+    if (season5$teams_played_for[i] == trophies_5[j]){
+      season5$team_trophies[i] = season5$team_trophies[i] + 1 }
+  }
+}
+
+# combines the seasons together
+FIFA_TOTS <- rbind(season4, season5)
+
+#_______________________________________________________________________________
+
+# filting the table so it only shows the players with individual trophies 
+Ind_Trophies_Player <- FIFA_TOTS %>%
+  filter(ind_trophies > 0) %>%
+  arrange(TOTS) %>%
+  select(player_name, year, goals, assists, TOTS, ind_trophies)
+Ind_Trophies_Player
+
+# creates new row with the player's year and name
+FIFA_TOTS$Name_Year <- str_c(FIFA_TOTS$year, ", ",FIFA_TOTS$player_name)
+
+# filter out any player not in the team of the season
+Only_TOTS <- FIFA_TOTS %>%
+  filter(TOTS == "yes")
+
+# gather function to separate individual and team trophies to make a stacked bar graph
+stats <- gather(Only_TOTS, Trophies_Type, number, ind_trophies:team_trophies)
+
+# Stacked bar graph to show amount of individual and team trophies in one season
+ggplot(stats, aes(x=number, y=Name_Year, fill=Trophies_Type)) +
+  geom_bar(stat="identity", position = "stack") +
+  scale_fill_discrete(labels = c("Individual", "Team")) +
+  labs(
+    x = "Trophies in the Season",
+    y = "Player Name",
+    title = "Trophies Per Season for TOTS Players",
+    fill = "Types of Trophies"
+  )
+
+# find how many players from each team made it into the Team of the season
+ggplot(Only_TOTS, aes(teams_played_for, fill = year)) +
+  geom_bar() +
+  coord_flip() +
+  labs(
+    x = "Team Name",
+    y = "Number of Players",
+    title = "How Many Players From Each Team in TOTS",
+    fill = "Year Nominated"
+  )
+
+
+
+```
